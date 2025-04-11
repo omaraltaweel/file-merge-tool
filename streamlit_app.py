@@ -11,17 +11,18 @@ from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
 # === Password Protection ===
 st.set_page_config(page_title="FileMergeTool", layout="wide")
-PASSWORD = "0000"
+PASSWORD = st.secrets["auth"]["password"]
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-if not st.session_state.authenticated:
-    pw = st.text_input("🔒 Enter password to access the tool", type="password")
-    if pw == PASSWORD:
-        st.session_state.authenticated = True
-        st.experimental_rerun()
-    else:
-        st.stop()
+if pw == PASSWORD:
+    st.session_state.authenticated = True
+    st.success("✅ Access granted. Please wait...")
+    st.stop()  # Let Streamlit naturally rerun the next time
+else:
+    if pw:
+        st.error("❌ Incorrect password.")
+    st.stop()
 
 st.title("📎 Excel File Merge Tool")
 
