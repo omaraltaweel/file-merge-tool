@@ -7,6 +7,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.comments import Comment
 from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
 st.set_page_config(page_title="Excel File Merge Tool", layout="wide")
@@ -40,7 +41,6 @@ if uploaded_files:
     all_data = []
     validation_errors = {}
 
-    # === Validate each file ===
     for file in uploaded_files:
         try:
             xl = pd.ExcelFile(file)
@@ -64,6 +64,7 @@ if uploaded_files:
                 continue
 
             df.insert(0, "S.I.", "")
+            df["SourceFile"] = file.name
             df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
             all_data.append((file.name, df))
 
@@ -82,7 +83,6 @@ if uploaded_files:
         st.warning("No valid data available to merge.")
         st.stop()
 
-    # === Header normalization ===
     canonical_headers = {}
     for _, df in all_data:
         for col in df.columns:
@@ -103,12 +103,27 @@ if uploaded_files:
     timestamp = now.strftime("%d-%m-%Y_%H%M%S")
     output_name = f"MergedOutput_{username}_{timestamp}.xlsx"
 
+    # Write full data including SourceFile
     output = BytesIO()
     combined_df.to_excel(output, index=False, sheet_name="Merged Data")
     output.seek(0)
 
     wb = load_workbook(output)
     ws = wb.active
+
+    # Add comments to Material_ID with SourceFile
+    for row_idx, cell in enumerate(ws["B"][1:], start=2):
+        try:
+            source_file = combined_df.at[row_idx - 2, "SourceFile"]
+            cell.comment = Comment(f"SourceFile: {source_file}", "MergeTool")
+        except Exception:
+            continue
+
+    # Delete SourceFile column
+    for col_idx, cell in enumerate(ws[1], start=1):
+        if cell.value == "SourceFile":
+            ws.delete_cols(col_idx)
+            break
 
     # Reset styles
     for row in ws.iter_rows():
@@ -140,14 +155,12 @@ if uploaded_files:
     for col_idx in sorted(deleted_cols, reverse=True):
         ws.delete_cols(col_idx)
 
-    # Highlight retained unwanted columns
     for col_idx, header in enumerate([cell.value for cell in ws[1]], start=1):
         if header and header.strip().lower() in UNWANTED_COLUMNS:
             col_data = list(ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2, values_only=True))[0]
             if any(v not in ("", None) for v in col_data):
                 ws.cell(row=1, column=col_idx).fill = PatternFill(start_color="FF6666", end_color="FF6666", fill_type="solid")
 
-    # Format as table
     max_row, max_col = ws.max_row, ws.max_column
     if max_row >= 2 and max_col >= 1:
         table_range = f"A1:{get_column_letter(max_col)}{max_row}"
@@ -166,7 +179,6 @@ if uploaded_files:
     wb.save(final_output)
     final_output.seek(0)
 
-    # === Output Summary ===
     st.success(f"✅ Files merged: {len(all_data)}")
     st.success(f"✅ Rows merged: {len(combined_df)}")
 
