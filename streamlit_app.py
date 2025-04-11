@@ -31,7 +31,7 @@ if not st.session_state.authenticated:
         st.stop()
 
 # === UI ===
-st.title("📎 Excel File Merge Tool")
+st.title("📎 File Merge Tool")
 uploaded_files = st.file_uploader(
     "Upload Excel files (must contain a sheet named 'Standard Materials')",
     type=["xlsx", "xlsm"],
