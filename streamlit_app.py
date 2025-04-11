@@ -34,8 +34,8 @@ st.title("📎 File Merge Tool")
 
 # === 🧹 Add button to clear uploaded files from session ===
 if st.button("🧹 Clear Uploaded Files"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    if "uploaded_files" in st.session_state:
+        del st.session_state["uploaded_files"]
     st.rerun()
 
 uploaded_files = st.file_uploader(
