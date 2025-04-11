@@ -12,7 +12,7 @@ DATAFILES_DIR = os.path.join(BASE_DIR, "DataFiles")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 
-TEMPLATE_EXPECTED_HEADERS = [
+TEMPLATE_EXPECTED_HEADERS = [h.lower() for h in [
     "Material_ID", "Description", "Buyer_Group", "Technical Text", "Standard_Material_Set", "COPIC_Number",
     "NIIN", "Manufacturing_Part_No", "Part_No", "Maturity", "ITAR", "TypeDescription", "MaterialType",
     "ExternalMaterialStatus", "StandardMaterialCategory", "TechnicalResponsibleUser", "MatSpec", "GFX",
@@ -23,9 +23,9 @@ TEMPLATE_EXPECTED_HEADERS = [
     "PipeShopTestMedium", "PipeShopTestPressure", "PipeFlushingMedium", "PipeFlushingAcceptanceCriteria",
     "PipeAdditionalTestPressCrit", "PipeAdditionalTestMedium", "AuthoringApplication", "Identifier", "Interface",
     "Inspection_Codes", "CommodityCode", "Min_Order_Qty", "Max_Order_Qty", "Supplier_ID"
-]
+]]
 
-UNWANTED_COLUMNS = [
+UNWANTED_COLUMNS = [h.lower() for h in [
     "ITAR", "TypeDescription", "StandardMaterialClass", "Certificate",
     "StockShelfLife", "AuthoringApplication", "Identifier", "Interface"
-]
+]]
