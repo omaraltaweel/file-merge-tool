@@ -9,23 +9,29 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
+# === App Settings ===
+st.set_page_config(page_title="Excel File Merge Tool", layout="wide")
+
 # === Password Protection ===
-st.set_page_config(page_title="FileMergeTool", layout="wide")
 PASSWORD = st.secrets["auth"]["password"]
+
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-if pw == PASSWORD:
-    st.session_state.authenticated = True
-    st.success("✅ Access granted. Please wait...")
-    st.stop()  # Let Streamlit naturally rerun the next time
-else:
-    if pw:
+if not st.session_state.authenticated:
+    pw = st.text_input("🔒 Enter password to access the tool", type="password")
+    if pw == PASSWORD:
+        st.session_state.authenticated = True
+        st.success("✅ Access granted. Please wait...")
+        st.stop()
+    elif pw:
         st.error("❌ Incorrect password.")
-    st.stop()
+        st.stop()
+    else:
+        st.stop()
 
-st.title("📎 File Merge Tool")
-
+# === UI ===
+st.title("📎 Excel File Merge Tool")
 uploaded_files = st.file_uploader(
     "Upload Excel files (must contain a sheet named 'Standard Materials')",
     type=["xlsx", "xlsm"],
