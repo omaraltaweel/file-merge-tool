@@ -23,7 +23,7 @@ if not st.session_state.authenticated:
     if pw == PASSWORD:
         st.session_state.authenticated = True
         st.success("✅ Access granted. Please wait...")
-        st.stop()
+        st.experimental_rerun()
     elif pw:
         st.error("❌ Incorrect password.")
         st.stop()
