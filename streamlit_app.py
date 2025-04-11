@@ -25,7 +25,7 @@ UNWANTED_COLUMNS = [
     "StockShelfLife", "AuthoringApplication", "Identifier", "Interface"
 ]
 
-st.title("📊 Excel Merge Tool")
+st.title("📊 FileMergeTool")
 uploaded_files = st.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
 
 if uploaded_files:
