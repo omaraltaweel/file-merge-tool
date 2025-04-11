@@ -31,10 +31,17 @@ if not st.session_state.authenticated:
         st.stop()
 
 st.title("📎 File Merge Tool")
+
+# === 🧹 Add button to clear uploaded files from session ===
+if st.button("🧹 Clear Uploaded Files"):
+    st.session_state.pop("uploaded_files", None)
+    st.experimental_rerun()
+
 uploaded_files = st.file_uploader(
     "Upload Excel files (must contain a sheet named 'Standard Materials')",
     type=["xlsx", "xlsm"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key="uploaded_files"
 )
 
 if uploaded_files:
