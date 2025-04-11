@@ -24,7 +24,7 @@ else:
         st.error("❌ Incorrect password.")
     st.stop()
 
-st.title("📎 Excel File Merge Tool")
+st.title("📎 File Merge Tool")
 
 uploaded_files = st.file_uploader(
     "Upload Excel files (must contain a sheet named 'Standard Materials')",
