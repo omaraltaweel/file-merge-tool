@@ -19,16 +19,19 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    pw = st.text_input("🔒 Enter password to access the tool", type="password")
-    if pw == PASSWORD:
+    if st.session_state.get("skip_pw_check"):
         st.session_state.authenticated = True
-        st.success("✅ Access granted. Please wait...")
-        st.rerun()
-    elif pw:
-        st.error("❌ Incorrect password.")
-        st.stop()
     else:
-        st.stop()
+        pw = st.text_input("🔒 Enter password to access the tool", type="password")
+        if pw == PASSWORD:
+            st.session_state.authenticated = True
+            st.success("✅ Access granted. Please wait...")
+            st.rerun()
+        elif pw:
+            st.error("❌ Incorrect password.")
+            st.stop()
+        else:
+            st.stop()
 
 st.title("📎 File Merge Tool")
 
@@ -36,6 +39,7 @@ st.title("📎 File Merge Tool")
 if st.button("🧹 Clear Uploaded Files"):
     if "uploaded_files" in st.session_state:
         del st.session_state["uploaded_files"]
+    st.session_state["skip_pw_check"] = True
     st.rerun()
 
 uploaded_files = st.file_uploader(
