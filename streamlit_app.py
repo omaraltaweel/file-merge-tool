@@ -95,6 +95,7 @@ if uploaded_files:
         all_data[idx] = (fname, df)
 
     combined_df = pd.concat([df for _, df in all_data], ignore_index=True)
+    combined_df.sort_values(by="Material_ID", inplace=True, ignore_index=True)
     duplicate_ids = combined_df[combined_df.duplicated("Material_ID", keep=False)]
 
     now = datetime.now()
