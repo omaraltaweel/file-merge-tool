@@ -1,38 +1,41 @@
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime
-import io
+from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
+from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
-EXPECTED_HEADERS = [
-    "Material_ID", "Description", "Buyer_Group", "Technical Text", "Standard_Material_Set", "COPIC_Number",
-    "NIIN", "Manufacturing_Part_No", "Part_No", "Maturity", "ITAR", "TypeDescription", "MaterialType",
-    "ExternalMaterialStatus", "StandardMaterialCategory", "TechnicalResponsibleUser", "MatSpec", "GFX",
-    "NatoStockID", "ProcPack", "Weight", "Height", "Width", "Depth", "StandardMaterialClass", "CageCode",
-    "ContPartNo", "ContPartName", "ContNo", "ProcClass", "EAR600", "EAR", "NonStdRtl", "Unit", "Certificate",
-    "StockShelfLife", "HazardousMaterial", "Equivalentmaterial", "machined", "machiningStrategy", "BuildPhaseID",
-    "LockoutLoadout", "hotwork", "UnitBlockBreak", "Flushed", "PipeInstallationTestMedium", "PipeInstallationTestPressure",
-    "PipeShopTestMedium", "PipeShopTestPressure", "PipeFlushingMedium", "PipeFlushingAcceptanceCriteria",
-    "PipeAdditionalTestPressCrit", "PipeAdditionalTestMedium", "AuthoringApplication", "Identifier", "Interface",
-    "Inspection_Codes", "CommodityCode", "Min_Order_Qty", "Max_Order_Qty", "Supplier_ID"
-]
+# === Password Protection ===
+st.set_page_config(page_title="Excel File Merge Tool", layout="wide")
+PASSWORD = "0000"
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-UNWANTED_COLUMNS = [
-    "ITAR", "TypeDescription", "StandardMaterialClass", "Certificate",
-    "StockShelfLife", "AuthoringApplication", "Identifier", "Interface"
-]
+if not st.session_state.authenticated:
+    pw = st.text_input("🔒 Enter password to access the tool", type="password")
+    if pw == PASSWORD:
+        st.session_state.authenticated = True
+        st.experimental_rerun()
+    else:
+        st.stop()
 
-st.title("📊 FileMergeTool")
-uploaded_files = st.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
+st.title("📎 Excel File Merge Tool")
+
+uploaded_files = st.file_uploader(
+    "Upload Excel files (must contain a sheet named 'Standard Materials')",
+    type=["xlsx", "xlsm"],
+    accept_multiple_files=True
+)
 
 if uploaded_files:
     all_data = []
     validation_errors = {}
-    warnings = []
 
+    # === Validate each file ===
     for file in uploaded_files:
         try:
             xl = pd.ExcelFile(file)
@@ -41,10 +44,10 @@ if uploaded_files:
                 continue
 
             df = xl.parse("Standard Materials", dtype=str).fillna("")
-            df.columns = [str(c).strip() for c in df.columns]
+            df.columns = [str(col).strip() for col in df.columns]
 
             errors = []
-            for i, expected in enumerate(EXPECTED_HEADERS):
+            for i, expected in enumerate(TEMPLATE_EXPECTED_HEADERS):
                 if i >= len(df.columns):
                     errors.append(f"Missing column {i+1}: '{expected}'")
                 elif df.columns[i] != expected:
@@ -56,42 +59,60 @@ if uploaded_files:
 
             df.insert(0, "S.I.", "")
             df["SourceFile"] = file.name
-            all_data.append(df)
+            df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+            all_data.append((file.name, df))
 
         except Exception as e:
             validation_errors[file.name] = [str(e)]
 
     if validation_errors:
-        st.error("Validation Errors Found:")
-        for f, msgs in validation_errors.items():
-            st.write(f"**{f}**")
-            for msg in msgs:
-                st.write(f" - {msg}")
+        st.error("❌ Some files failed validation:")
+        for fname, issues in validation_errors.items():
+            st.markdown(f"**{fname}**")
+            for issue in issues:
+                st.markdown(f"- {issue}")
         st.stop()
 
-    st.success(f"{len(all_data)} files passed validation. Merging...")
+    if not all_data:
+        st.warning("No valid data available to merge.")
+        st.stop()
 
-    combined_df = pd.concat(all_data, ignore_index=True)
+    # === Merge and process ===
+    combined_df = pd.concat([df for _, df in all_data], ignore_index=True)
+    duplicate_ids = combined_df[combined_df.duplicated("Material_ID", keep=False)]
+    duplicate_files = sorted(duplicate_ids["SourceFile"].unique())
 
-    # Handle formatting
-    buffer = io.BytesIO()
-    combined_df.to_excel(buffer, index=False, sheet_name="Merged Data")
-    buffer.seek(0)
-    wb = load_workbook(buffer)
-    ws = wb["Merged Data"]
+    now = datetime.now()
+    username = os.getenv("USERNAME", "User")
+    timestamp = now.strftime("%d-%m-%Y_%H%M%S")
+    output_name = f"MergedOutput_{username}_{timestamp}.xlsx"
 
-    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    # Save to memory
+    output = BytesIO()
+    combined_df.to_excel(output, index=False, sheet_name="Merged Data")
+    output.seek(0)
 
+    # === Format in Excel ===
+    wb = load_workbook(output)
+    ws = wb.active
+
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = cell.alignment.copy(wrap_text=False)
+            cell.fill = PatternFill(fill_type=None)
+
+    # Highlight duplicates
     material_ids = [cell.value for cell in ws["B"][1:]]
     duplicates = {x for x in material_ids if material_ids.count(x) > 1}
+    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
     for cell in ws["B"][1:]:
         if cell.value in duplicates:
             cell.fill = red_fill
 
-    # Handle unwanted columns
-    header_row = [cell.value for cell in ws[1]]
-    deleted_cols = []
+    # Remove empty unwanted columns and flag non-empty ones
     non_empty_highlight_cols = []
+    deleted_cols = []
+    header_row = [cell.value for cell in ws[1]]
 
     for col_idx, header in enumerate(header_row, start=1):
         if header in UNWANTED_COLUMNS:
@@ -104,34 +125,45 @@ if uploaded_files:
     for col_idx in sorted(deleted_cols, reverse=True):
         ws.delete_cols(col_idx)
 
-    for col_idx, header in enumerate([cell.value for cell in ws[1]], start=1):
+    # Highlight header for non-empty unwanted columns
+    header_row = [cell.value for cell in ws[1]]
+    for col_idx, header in enumerate(header_row, start=1):
         if header in UNWANTED_COLUMNS:
             col_data = list(ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2, values_only=True))[0]
             if any(v not in ("", None) for v in col_data):
-                ws.cell(row=1, column=col_idx).fill = red_fill
+                ws.cell(row=1, column=col_idx).fill = PatternFill(start_color="FF6666", end_color="FF6666", fill_type="solid")
 
+    # Add Excel table and freeze pane
     max_row, max_col = ws.max_row, ws.max_column
-    ws.add_table(Table(displayName="MergedDataTable", ref=f"A1:{get_column_letter(max_col)}{max_row}",
-                       tableStyleInfo=TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)))
+    table_range = f"A1:{get_column_letter(max_col)}{max_row}"
+    table = Table(displayName="MergedDataTable", ref=table_range)
+    style = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+    table.tableStyleInfo = style
+    ws.add_table(table)
     ws.freeze_panes = "A2"
 
+    # Auto-size columns
     for col in ws.columns:
         max_len = max((len(str(cell.value)) for cell in col if cell.value), default=0)
         ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 2, 50)
 
-    # Save to buffer for download
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
+    # Save to BytesIO again
+    final_output = BytesIO()
+    wb.save(final_output)
+    final_output.seek(0)
 
+    # === UI Summary & Download ===
+    st.success(f"✅ Files merged: {len(all_data)}")
+    st.success(f"✅ Rows merged: {len(combined_df)}")
+
+    if duplicate_files:
+        st.warning("⚠️ Duplicate Material_IDs found in:\n- " + "\n- ".join(duplicate_files))
     if non_empty_highlight_cols:
-        warnings.append("⚠️ Some unwanted columns could not be deleted because they contain data:\n- " + "\n- ".join(non_empty_highlight_cols))
-    if duplicates:
-        warnings.append("⚠️ Duplicate item IDs were found and highlighted in red.")
+        st.warning("⚠️ Some unwanted columns contain data:\n- " + ", ".join(non_empty_highlight_cols))
 
-    if warnings:
-        st.warning("\n\n".join(warnings))
-
-    st.success("Merge complete!")
-    st.download_button("📥 Download Merged Excel", output, file_name="MergedOutput.xlsx")
-
+    st.download_button(
+        label="📥 Download Merged Excel File",
+        data=final_output,
+        file_name=output_name,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
