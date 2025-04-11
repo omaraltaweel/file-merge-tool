@@ -10,7 +10,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
 # === Password Protection ===
-st.set_page_config(page_title="Excel File Merge Tool", layout="wide")
+st.set_page_config(page_title="FileMergeTool", layout="wide")
 PASSWORD = "0000"
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
