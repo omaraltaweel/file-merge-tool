@@ -48,7 +48,7 @@ if uploaded_files:
             # Case-insensitive match for sheet name
             sheet_name = next((s for s in xl.sheet_names if s.lower() == "standard materials".lower()), None)
             if not sheet_name:
-                validation_errors[file.name] = ["Missing 'Standard Materials' sheet (case-insensitive check failed)"]
+                validation_errors[file.name] = ["Missing 'Standard Materials' sheet"]
                 continue
 
             df = xl.parse(sheet_name, dtype=str).fillna("")
