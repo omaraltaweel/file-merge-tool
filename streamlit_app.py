@@ -44,11 +44,15 @@ if uploaded_files:
     for file in uploaded_files:
         try:
             xl = pd.ExcelFile(file)
-            if "Standard Materials" not in xl.sheet_names:
-                validation_errors[file.name] = ["Missing 'Standard Materials' sheet"]
+
+            # Case-insensitive match for sheet name
+            sheet_name = next((s for s in xl.sheet_names if s.lower() == "standard materials".lower()), None)
+            if not sheet_name:
+                validation_errors[file.name] = ["Missing 'Standard Materials' sheet (case-insensitive check failed)"]
                 continue
 
-            df = xl.parse("Standard Materials", dtype=str).fillna("")
+            df = xl.parse(sheet_name, dtype=str).fillna("")
+
             original_headers = [str(col).strip() for col in df.columns]
             lower_headers = [col.lower() for col in original_headers]
 
