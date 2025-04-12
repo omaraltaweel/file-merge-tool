@@ -10,7 +10,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.comments import Comment
 from config import TEMPLATE_EXPECTED_HEADERS, UNWANTED_COLUMNS
 
-st.set_page_config(page_title="Excel File Merge Tool", layout="wide")
+st.set_page_config(page_title="Standard Materials Import Tool", layout="wide")
 
 # === Password Protection ===
 PASSWORD = st.secrets["auth"]["password"]
